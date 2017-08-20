@@ -63,6 +63,8 @@ public:
 };
 
 
+//No edges with negative weight!
+//Time O(E logV).
 void dijkstra(double * weights, Graph& graph, int start)
 {
 	int *indices = new int[graph.vertices]; //indices[v] is the index of v in the heap
@@ -156,19 +158,66 @@ graph[v][u] = w;//if not directed
 */
 
 
+//result should already contain V vector<double>
+//Time O(V E logV).
+bool johnson(const Graph& graph, std::vector<std::vector<double>>& result)
+{
+	Graph new_graph = graph;//adding 1 vertex
+	new_graph.vertices += 1;
+	new_graph.edges += graph.vertices;
+	{std::list<Graph::Node> a;
+	new_graph.adj.push_back(a); }
+	for (int i = 0; i < graph.vertices; i++)
+	{
+		new_graph.adj[graph.vertices].push_back(Graph::Node{ i, 0 });
+	}
+	double * weights = new double[new_graph.vertices];
+	if (!ford_bellman(weights, new_graph, graph.vertices))
+	{
+		std::cout << "There is a cycle with negative weight\n";
+		return false;
+	}
+	else
+	{
+		//removing the added vertex from new_graph:
+		new_graph.vertices -= 1;
+		new_graph.edges -= graph.vertices;
+		new_graph.adj.pop_back();
+		//setting new, positive weights:
+		for (int i = 0; i < new_graph.vertices; i++)
+			for (std::list<Graph::Node>::iterator j = new_graph.adj[i].begin();
+				j != new_graph.adj[i].end(); j++)
+				j->weight = j->weight + weights[i] - weights[j->vertex];
+		
+		double * positive_weights = new double[new_graph.vertices];
+		for (int i = 0; i < new_graph.vertices; i++)
+		{
+			dijkstra(positive_weights, new_graph, i);
+			for (int j = 0; j < new_graph.vertices; j++)
+				result[i].push_back(positive_weights[j] + weights[j] - weights[i]);
+		}
+		delete[] positive_weights;
+		delete[] weights;
+		return true;
+	}
+	
+}
+
 int main()
 {
 	int v, e;
 	std::cin >> v >> e;
 	Graph graph(v, e, false);
-		
-	double * weights = new double[v];
-	dijkstra(weights, graph, 0);
-	for (int i = 0; i < v; i++)
-		std::cout << weights[i] << " ";
-
-	delete[] weights;
-
+	
+	std::vector<std::vector<double>> weights(v);
+	if (johnson(graph, weights))
+		for (int i = 0; i < v; i++)
+		{
+			for (int j = 0; j < v; j++)
+				std::cout << weights[i][j] << " ";
+			std::cout << "\n";
+		}
+	
 	std::cout << "\n";
 	system("pause");
 	return 0;
